@@ -1,23 +1,44 @@
 import React, { useEffect, useState } from "react";
 import { useChromeStorageLocal } from "use-chrome-storage";
 import { Download } from "../state";
+import { BUILT_IN_PROXY_BASE } from "../constants";
+
+// Returns true if the given string is empty (allowed, since these fields
+// are optional) or a well-formed, absolute URL.
+function isValidOptionalUrl(value: string): boolean {
+  if (!value) {
+    return true;
+  }
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export default function App() {
   const [enabled, setEnabled] = useChromeStorageLocal("enabled", false);
   const [proxyBaseUrl, setProxyBaseUrl] = useChromeStorageLocal(
     "proxyBaseUrl",
-    "https://gtr-proxy.677472.xyz"
+    BUILT_IN_PROXY_BASE
+  );
+  const [proxyAuthToken, setProxyAuthToken] = useChromeStorageLocal(
+    "proxyAuthToken",
+    ""
   );
   const [azureSasUrl, setAzureSasUrl] = useChromeStorageLocal(
     "azureSasUrl",
     ""
   );
-  const [downloads, setDownloads]: [
-    { [key: string]: Download },
-    (val: { [key: string]: Download }) => any,
-    any,
-    any
-  ] = useChromeStorageLocal("downloads", new Map());
+  const [downloads, setDownloads] = useChromeStorageLocal<{
+    [key: string]: Download;
+  }>("downloads", {});
+
+  const azureSasUrlValid = isValidOptionalUrl(azureSasUrl);
+  const proxyBaseUrlValid = isValidOptionalUrl(proxyBaseUrl);
+  const usingBuiltInProxy =
+    !proxyBaseUrl || proxyBaseUrl === BUILT_IN_PROXY_BASE;
 
   return (
     <div>
@@ -47,19 +68,27 @@ export default function App() {
           style={{ zoom: 3.0 }}
         />
         <br />
-        <label>Azure SAS Container URL (Blob SAS URL):</label>
+        <label htmlFor="azureSasUrl">
+          Azure SAS Container URL (Blob SAS URL):
+        </label>
         <br />
         <input
+          id="azureSasUrl"
           type="text"
-          name="name"
+          name="azureSasUrl"
           value={azureSasUrl}
           onChange={(e) => setAzureSasUrl(e.target.value)}
           style={{ width: "90%", zoom: 1.2 }}
         />
+        {!azureSasUrlValid && (
+          <p style={{ color: "red", margin: "4px 0" }}>
+            This doesn&apos;t look like a valid URL.
+          </p>
+        )}
         <br />
         <br />
-        <label>
-          GTR Proxy Base URL (default: https://gtr-proxy.677472.xyz):
+        <label htmlFor="proxyBaseUrl">
+          GTR Proxy Base URL (default: {BUILT_IN_PROXY_BASE}):
           <a
             href="https://github.com/nelsonjchen/gtr-proxy#readme"
             target="_blank"
@@ -71,10 +100,39 @@ export default function App() {
         </label>
         <br />
         <input
+          id="proxyBaseUrl"
           type="text"
-          name="name"
+          name="proxyBaseUrl"
           value={proxyBaseUrl}
           onChange={(e) => setProxyBaseUrl(e.target.value)}
+          style={{ width: "90%", zoom: 1.2 }}
+        />
+        {!proxyBaseUrlValid && (
+          <p style={{ color: "red", margin: "4px 0" }}>
+            This doesn&apos;t look like a valid URL.
+          </p>
+        )}
+        {usingBuiltInProxy && (
+          <p style={{ margin: "4px 0" }}>
+            You&apos;re using the shared, publicly hosted default proxy. It can
+            observe your Google cookies and Azure SAS token as it relays
+            requests. For privacy, consider running your own instance (see the
+            link above) and set a Proxy Auth Token below to prevent others from
+            using it.
+          </p>
+        )}
+        <br />
+        <label htmlFor="proxyAuthToken">
+          Proxy Auth Token (optional — only needed if your GTR Proxy is
+          configured to require one):
+        </label>
+        <br />
+        <input
+          id="proxyAuthToken"
+          type="password"
+          name="proxyAuthToken"
+          value={proxyAuthToken}
+          onChange={(e) => setProxyAuthToken(e.target.value)}
           style={{ width: "90%", zoom: 1.2 }}
         />
       </form>

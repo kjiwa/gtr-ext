@@ -3,8 +3,7 @@ import "isomorphic-fetch";
 import { v4 as uuidv4 } from "uuid";
 import { btoa } from "abab";
 import { Download } from "./state";
-
-const built_in_proxy_base = "https://gtr-proxy.677472.xyz";
+import { BUILT_IN_PROXY_BASE, PROXY_TOKEN_PARAM } from "./constants";
 
 interface JobPlan {
   chunks: {
@@ -18,10 +17,11 @@ interface JobPlan {
 export function sourceToGtrProxySource(
   source: string,
   proxyBase?: string,
-  encodedCookies?: string
+  encodedCookies?: string,
+  proxyAuthToken?: string
 ): string {
   if (!proxyBase) {
-    proxyBase = built_in_proxy_base;
+    proxyBase = BUILT_IN_PROXY_BASE;
   }
   // Replace all %2F with %252F and remove scheme
   const url = source.replace(/%2F/g, "%252F").replace(/https?:\/\//, "");
@@ -30,6 +30,12 @@ export function sourceToGtrProxySource(
   if (encodedCookies) {
     const separator = proxyUrl.includes("?") ? "&" : "?";
     proxyUrl += `${separator}a=${encodeURIComponent(encodedCookies)}`;
+  }
+  if (proxyAuthToken) {
+    const separator = proxyUrl.includes("?") ? "&" : "?";
+    proxyUrl += `${separator}${PROXY_TOKEN_PARAM}=${encodeURIComponent(
+      proxyAuthToken
+    )}`;
   }
 
   // Azure imposes a 2 KiB limit on the length of the source URL in
@@ -64,7 +70,7 @@ export async function createJobPlan(
 
   // Divide into chunks
   const chunkSize = chunk_size_mb * 1024 * 1024;
-  const numChunks = Math.floor(length / chunkSize);
+  const numChunks = Math.ceil(length / chunkSize);
   console.log(`Will divide into ${numChunks} chunks`);
   let chunks = [];
   for (let i = 0; i < length; i += chunkSize)
@@ -84,17 +90,25 @@ export async function transload(
   destination: string,
   name: string,
   proxyBase?: string,
-  chunk_size_mb?: number
+  chunk_size_mb?: number,
+  proxyAuthToken?: string
 ): Promise<Download> {
-  console.log(`Transloading ${sourceUrl} to ${destination}`);
+  // Note: sourceUrl and destination may carry credentials (cookies, a proxy
+  // auth token, and/or an Azure SAS token respectively), so they must never
+  // be logged.
+  console.log(`Transloading ${name}`);
 
   const containerClient = new ContainerClient(destination);
   if (!proxyBase) {
-    proxyBase = built_in_proxy_base;
+    proxyBase = BUILT_IN_PROXY_BASE;
   }
-  const blobClient = containerClient.getBlockBlobClient(name, proxyBase);
+  const blobClient = containerClient.getBlockBlobClient(
+    name,
+    proxyBase,
+    proxyAuthToken
+  );
   const jobPlan = await createJobPlan(sourceUrl, chunk_size_mb);
-  console.log(`Got job plan: `, jobPlan);
+  console.log(`Got job plan with ${jobPlan.chunks.length} chunk(s)`);
   console.log(`Staging Blocks`);
   const responses = jobPlan.chunks.map(async (chunk) =>
     blobClient.stageBlockFromURL(
@@ -104,16 +118,12 @@ export async function transload(
       chunk.size
     )
   );
-  const results = await Promise.all(responses);
-  console.log(`Staged blocks: `, results);
+  await Promise.all(responses);
+  console.log(`Staged ${jobPlan.chunks.length} block(s)`);
   console.log(`Committing Block List`);
-  const commitResp = await blobClient.commitBlockList(
-    jobPlan.chunks.map((c) => c.blockId)
-  );
-  console.log(`Blocklist: `, commitResp);
-
+  await blobClient.commitBlockList(jobPlan.chunks.map((c) => c.blockId));
   console.log(`Committed Block List`);
 
-  console.log(`Transloaded ${sourceUrl} to ${destination}`);
+  console.log(`Transloaded ${name}`);
   return { name, status: "complete", size: jobPlan.length };
 }

@@ -8,14 +8,30 @@
 import "isomorphic-fetch";
 import fetchBuilder from "fetch-retry";
 import { azBlobSASUrlToProxyPathname } from "./azb";
+import { PROXY_TOKEN_PARAM } from "./constants";
 
 const fetch = fetchBuilder(globalThis.fetch);
+
+// Azure Storage REST API version used for both the stage and commit calls.
+const AZURE_STORAGE_API_VERSION = "2021-08-06";
+
+// Shared retry behavior for requests that may transiently fail, whether
+// served directly by Azure or relayed through a gtr-proxy instance.
+const RETRY_OPTS = {
+  retries: 10,
+  retryDelay: 1000,
+  retryOn: [409, 520, 524, 500, 503, 530]
+};
 
 export class ContainerClient {
   constructor(public readonly containerUrl: string) {}
 
-  getBlockBlobClient(blobName: string, gtrProxyBase?: string): BlockBlobClient {
-    return new BlockBlobClient(this, blobName, gtrProxyBase);
+  getBlockBlobClient(
+    blobName: string,
+    gtrProxyBase?: string,
+    proxyAuthToken?: string
+  ): BlockBlobClient {
+    return new BlockBlobClient(this, blobName, gtrProxyBase, proxyAuthToken);
   }
 }
 
@@ -23,8 +39,24 @@ export class BlockBlobClient {
   constructor(
     public readonly containerClient: ContainerClient,
     public readonly blobName: string,
-    public readonly gtrProxyBase?: string
+    public readonly gtrProxyBase?: string,
+    public readonly proxyAuthToken?: string
   ) {}
+
+  // Builds the direct (non-proxied) Azure blob URL for this blob, with the
+  // given extra query string appended to the container's SAS query.
+  private buildBlobUrl(extraQuery: string): URL {
+    const containerUrl = new URL(this.containerClient.containerUrl);
+    return new URL(
+      containerUrl.protocol +
+        "//" +
+        containerUrl.host +
+        containerUrl.pathname +
+        `/${this.blobName}` +
+        containerUrl.search +
+        extraQuery
+    );
+  }
 
   async stageBlockFromURL(
     blockId: string,
@@ -32,33 +64,26 @@ export class BlockBlobClient {
     offset: number,
     count: number
   ): Promise<Response> {
-    console.log(`Staging block ${blockId} from ${sourceUrl}`);
-    const containerUrl = new URL(this.containerClient.containerUrl);
-    const blobUrl = new URL(
-      containerUrl.protocol +
-        "//" +
-        containerUrl.host +
-        containerUrl.pathname +
-        `/${this.blobName}` +
-        containerUrl.search +
-        `&blockid=${blockId}` +
-        `&comp=block`
-    );
+    // Note: sourceUrl may carry credentials (cookies and/or a proxy auth
+    // token), so it must never be logged.
+    console.log(`Staging block ${blockId} (blob ${this.blobName})`);
+    const blobUrl = this.buildBlobUrl(`&blockid=${blockId}&comp=block`);
 
     let fetchBlobUrl;
     if (this.gtrProxyBase) {
       fetchBlobUrl = azBlobSASUrlToProxyPathname(blobUrl, this.gtrProxyBase);
+      if (this.proxyAuthToken) {
+        fetchBlobUrl.searchParams.set(PROXY_TOKEN_PARAM, this.proxyAuthToken);
+      }
     } else {
       fetchBlobUrl = blobUrl;
     }
 
     const resp = await fetch(fetchBlobUrl.toString(), {
       method: "PUT",
-      retries: 10,
-      retryDelay: 1000,
-      retryOn: [409, 520, 524, 500, 503, 530],
+      ...RETRY_OPTS,
       headers: {
-        "x-ms-version": "2021-08-06",
+        "x-ms-version": AZURE_STORAGE_API_VERSION,
         "x-ms-copy-source": sourceUrl,
         "x-ms-source-range": `bytes=${offset}-${offset + count - 1}`
       },
@@ -72,17 +97,8 @@ export class BlockBlobClient {
   }
 
   async commitBlockList(blocks: string[]): Promise<Response> {
-    console.log(`Committing block list: ${blocks}`);
-    const containerUrl = new URL(this.containerClient.containerUrl);
-    const blobUrl = new URL(
-      containerUrl.protocol +
-        "//" +
-        containerUrl.host +
-        containerUrl.pathname +
-        `/${this.blobName}` +
-        containerUrl.search +
-        `&comp=blocklist`
-    );
+    console.log(`Committing block list of ${blocks.length} block(s)`);
+    const blobUrl = this.buildBlobUrl(`&comp=blocklist`);
     const data = `<?xml version="1.0" encoding="utf-8"?>
 <BlockList>
 ${blocks.map((blockId) => `<Latest>${blockId}</Latest>`).join("\n")}
@@ -91,11 +107,9 @@ ${blocks.map((blockId) => `<Latest>${blockId}</Latest>`).join("\n")}
     const resp = await fetch(blobUrl.toString(), {
       method: "PUT",
       body: data,
-      retries: 10,
-      retryDelay: 1000,
-      retryOn: [409, 520, 524, 500, 503, 530],
+      ...RETRY_OPTS,
       headers: {
-        "x-ms-version": "2020-10-02"
+        "x-ms-version": AZURE_STORAGE_API_VERSION
       }
     });
 

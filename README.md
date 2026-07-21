@@ -30,6 +30,17 @@ The extension works with [gtr-proxy][gtr-proxy], a CloudFlare workers service, t
 
 The extension stops downloads from Google Takeout in your local browser, captures the finalized download links, extracts google cookies, and tells Azure to download from Google's URLs with the cookies instead via the proxy. It handles encoding the URLs of Google Takeout files so Azure is able to download them at all via a [gtr-proxy][gtr-proxy] service and that [gtr-proxy][gtr-proxy] service is also used to command Azure over hundreds of requests simutaneously to fetch the files in chunks simultaneously in parallel to quickly transload archives to Azure.
 
+## Securing your own gtr-proxy instance
+
+By default, and by design of a [gtr-proxy][gtr-proxy] service, a `gtr-proxy` instance is an open relay: it forwards whatever request it receives to Google or to your Azure account, without checking who's asking. That's fine for the data itself (nothing works without your own Azure SAS token), but it means anyone who learns your proxy's URL can use it for their _own_ Takeout transloads, consuming your CloudFlare quota. This is more of a risk for a **self-hosted** instance than for the shared public default, since the public instance's quota is expected to be shared.
+
+If you deploy your own instance, it's strongly recommended to:
+
+1. **Require a pre-shared token.** Configure your worker to check a `gtr_token` query parameter on every request against a secret you set (e.g. a Wrangler secret), rejecting anything that doesn't match with `403`, and stripping the parameter before forwarding the request upstream. Paste the same token into the extension's "Proxy Auth Token" field so it's automatically attached to every request.
+2. **Allowlist destinations.** Restrict the proxy so `/p/...` requests can only be forwarded to Google hosts, and `/p-azb/...` requests can only be forwarded to your own storage account. This limits what an attacker could do even if a token leaked.
+
+See the [gtr-proxy repository][gtr-proxy] for implementation details.
+
 ## Logo
 
 The logo used in the extension is the Rocket logo of Twemoji.

@@ -13,12 +13,12 @@ import pako from "pako";
 
 console.log("initialized gtr extension");
 
-function getConfig(): Promise<[boolean, string, string]> {
+function getConfig(): Promise<[boolean, string, string, string]> {
   // Immediately return a promise and start asynchronous work
   return new Promise((resolve, reject) => {
     // Asynchronously fetch all data from storage.sync.
     chrome.storage.local.get(
-      ["enabled", "azureSasUrl", "proxyBaseUrl"],
+      ["enabled", "azureSasUrl", "proxyBaseUrl", "proxyAuthToken"],
       (result) => {
         // Pass any observed errors down the promise chain.
         if (chrome.runtime.lastError) {
@@ -27,10 +27,26 @@ function getConfig(): Promise<[boolean, string, string]> {
         const enabled = result.enabled as boolean;
         const azureSasUrl = result.azureSasUrl as string;
         const proxyBaseUrl = result.proxyBaseUrl as string;
-        resolve([enabled, azureSasUrl, proxyBaseUrl]);
+        const proxyAuthToken = result.proxyAuthToken as string;
+        resolve([enabled, azureSasUrl, proxyBaseUrl, proxyAuthToken]);
       }
     );
   });
+}
+
+// A tiny async mutex used to serialize reads and writes of the "downloads"
+// entry in chrome.storage.local. Concurrent transloads (e.g. several
+// archives downloading in parallel) would otherwise race on a
+// get-modify-set cycle and silently clobber each other's updates.
+let downloadsLock: Promise<unknown> = Promise.resolve();
+
+function withDownloadsLock<T>(fn: () => Promise<T>): Promise<T> {
+  const result = downloadsLock.then(fn, fn);
+  // Swallow errors here so a failed update doesn't permanently jam the
+  // lock for subsequent callers; callers still observe rejections via the
+  // returned promise.
+  downloadsLock = result.catch(() => undefined);
+  return result;
 }
 
 function getDownloads(): Promise<{ [key: string]: Download }> {
@@ -72,15 +88,14 @@ async function captureDownload(
   downloadItem: chrome.downloads.DownloadItem,
   suggestion: Function
 ) {
-  const [enabled, azureSasUrl, proxyBaseUrl] = await getConfig();
+  const [enabled, azureSasUrl, proxyBaseUrl, proxyAuthToken] =
+    await getConfig();
   if (!enabled) {
     console.log("Skipping interception of download.");
     return;
   }
 
-  console.log("download started:", downloadItem);
-  console.log("final url:", downloadItem.finalUrl);
-  console.log("filename:", downloadItem.filename);
+  console.log("download started, filename:", downloadItem.filename);
   chrome.notifications.create(`transload-start-${downloadItem.filename}`, {
     title: "🚀 GTR Transload Started",
     message: `⏳ ${downloadItem.filename} started (disable interception in extension popup)`,
@@ -89,22 +104,24 @@ async function captureDownload(
     priority: 0
   });
   chrome.downloads.cancel(downloadItem.id);
-  console.log("chrome native download cancelled:", downloadItem);
+  console.log("chrome native download cancelled");
+  // Note: azureSasUrl carries a credential (an Azure SAS token) and must
+  // never be logged.
   const sas = azureSasUrl;
-  console.log("Azure sas:", sas);
 
   // Add download to pending
   const pendingDownload: Download = {
     name: downloadItem.filename,
     status: "pending"
   };
-  const preDownloadsState = await getDownloads();
-  await chrome.storage.local.set({
-    downloads: (() => {
-      const downloads = { ...preDownloadsState };
-      downloads[pendingDownload.name] = pendingDownload;
-      return downloads;
-    })()
+  await withDownloadsLock(async () => {
+    const preDownloadsState = await getDownloads();
+    await chrome.storage.local.set({
+      downloads: {
+        ...preDownloadsState,
+        [pendingDownload.name]: pendingDownload
+      }
+    });
   });
 
   let download: Download;
@@ -119,11 +136,14 @@ async function captureDownload(
       sourceToGtrProxySource(
         downloadItem.finalUrl,
         proxyBaseUrl,
-        encodedCookies
+        encodedCookies,
+        proxyAuthToken
       ),
       sas,
       downloadItem.filename,
-      proxyBaseUrl
+      proxyBaseUrl,
+      undefined,
+      proxyAuthToken
     );
     const then = new Date();
     const duration = then.getTime() - now.getTime();
@@ -143,13 +163,14 @@ async function captureDownload(
     }
   }
 
-  const updateDownloadsState = await getDownloads();
-  await chrome.storage.local.set({
-    downloads: (() => {
-      const downloads = { ...updateDownloadsState };
-      downloads[download.name] = download;
-      return downloads;
-    })()
+  await withDownloadsLock(async () => {
+    const updateDownloadsState = await getDownloads();
+    await chrome.storage.local.set({
+      downloads: {
+        ...updateDownloadsState,
+        [download.name]: download
+      }
+    });
   });
   chrome.notifications.clear(`transload-start-${downloadItem.filename}`);
   if (download.status === "complete") {
