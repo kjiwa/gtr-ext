@@ -15,7 +15,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "format": "prettier --write .",
-    "pkg": "npm run build && cd dist && zip -qr ../gtr-ext.zip .",
+    "pkg": "rm -f gtr-ext-*.zip && NODE_ENV=production npm run build && cd dist && zip -qrX \"../gtr-ext-$(node -p \"require(\\\"../static/manifest.json\\\").version\").zip\" .",
     "lint:ext": "web-ext lint -s dist"
   },
   "devDependencies": {
