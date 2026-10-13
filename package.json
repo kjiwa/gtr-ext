@@ -1,54 +1,33 @@
 {
+  "name": "gtr-ext",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "repository": "kjiwa/gtr-ext",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
-    "build": "node esbuild.js",
-    "build:watch": "cross-env ESB_WATCH=true node esbuild.js",
-    "pkg": "cd public && zip -9 -r gtr-ext-unpacked.zip . && mv gtr-ext-unpacked.zip ../",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "fmt": "prettier --write .",
-    "fmt:check": "prettier --check ."
-  },
-  "gitHooks": {
-    "pre-commit": "prettier --write . && git add -A"
-  },
-  "jest": {
-    "preset": "ts-jest/presets/js-with-ts",
-    "transform": {
-      "^.+\\.(ts|tsx)$": "ts-jest",
-      "^.+\\.(js)$": "babel-jest"
-    },
-    "transformIgnorePatterns": [],
-    "setupFiles": [
-      "dotenv/config"
-    ]
+    "build": "node build.mjs",
+    "build:watch": "node build.mjs --watch",
+    "lint": "eslint --max-warnings=0 . && prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "format": "prettier --write .",
+    "pkg": "npm run build && cd dist && zip -qr ../gtr-ext.zip .",
+    "lint:ext": "web-ext lint -s dist"
   },
   "devDependencies": {
-    "@babel/core": "^7.21.4",
-    "@babel/preset-env": "^7.21.4",
-    "@types/chrome": "^0.0.231",
-    "@types/jest": "^29.5.0",
-    "@types/pako": "^2.0.4",
-    "@types/react": "^18.0.35",
-    "@types/react-dom": "^18.0.11",
-    "@types/uuid": "^9.0.1",
-    "abab": "^2.0.6",
-    "babel-jest": "^29.5.0",
-    "cross-env": "^7.0.3",
-    "dotenv": "^16.0.3",
-    "esbuild": "0.17.19",
-    "fetch-retry": "^5.0.4",
-    "isomorphic-fetch": "^3.0.0",
-    "jest": "^29.5.0",
-    "node-fetch": "^3.3.1",
-    "pako": "^2.1.0",
-    "prettier": "^2.8.7",
-    "pretty-bytes": "^6.1.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "ts-jest": "^29.1.0",
-    "typescript": "^5.0.4",
-    "use-chrome-storage": "^1.2.1",
-    "uuid": "^9.0.0",
-    "yorkie": "^2.0.0"
+    "@eslint/js": "^10.0.1",
+    "@types/chrome": "^0.3.5",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.12.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0",
+    "typescript-eslint": "^8.71.2",
+    "vitest": "^4.1.11",
+    "web-ext": "^10.7.0"
   }
 }

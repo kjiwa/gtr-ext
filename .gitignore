@@ -1,11 +1,5 @@
-/node_modules
-/build
-/.vscode
-.eslintcache
-*.env
-*.local
-*.log
-/public/build
-.env
+node_modules
+dist
 *.zip
-.idea
+.DS_Store
+.env
