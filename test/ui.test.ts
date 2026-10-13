@@ -61,12 +61,11 @@ describe("transfers view", () => {
     expect(view).toMatchObject({ percent: 100, speedText: undefined, cancellable: false, sizeText: "10 B" });
   });
 
-  it("gives failed and interrupted transfers an error and a next step", () => {
+  it("shows the stored error message once for failed and interrupted transfers", () => {
     const failed = toTransferView(transfer({ phase: "failed", error: { code: "proxy_rejected", message: "The proxy rejected the secret." } }), NOW);
     expect(failed.errorText).toBe("The proxy rejected the secret.");
-    expect(failed.nextStep).toBe("Check the secret in Settings.");
     const interrupted = toTransferView(transfer({ phase: "interrupted", error: { code: "interrupted", message: "Restarted." } }), NOW);
-    expect(interrupted.nextStep).toContain("Start the download again");
+    expect(interrupted.errorText).toBe("Restarted.");
     expect(toTransferView(transfer({ phase: "cancelled" }), NOW).errorText).toBeUndefined();
   });
 });

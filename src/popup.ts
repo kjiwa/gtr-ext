@@ -49,7 +49,7 @@ function renderTransfer(view: TransferView): HTMLElement {
     item.append(el("div", "transfer-meta", ...meta.map((part) => el("span", undefined, part))));
   }
   if (view.errorText !== undefined) {
-    item.append(el("p", "error-text", `${view.errorText} ${view.nextStep ?? ""}`.trim()));
+    item.append(el("p", "error-text", view.errorText));
   }
   if (view.cancellable) {
     const cancel = el("button", "button", "Cancel");

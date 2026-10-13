@@ -11,7 +11,6 @@ export interface TransferView {
   sizeText: string | undefined;
   speedText: string | undefined;
   errorText: string | undefined;
-  nextStep: string | undefined;
   cancellable: boolean;
 }
 
@@ -24,20 +23,6 @@ const PHASE_LABELS: Record<TransferPhase, string> = {
   interrupted: "Interrupted",
   cancelled: "Cancelled",
 };
-
-const NEXT_STEPS: Record<string, string> = {
-  interrupted: "Start the download again in Google Takeout.",
-  proxy_rejected: "Check the secret in Settings.",
-  proxy_unreachable: "Check the proxy URL in Settings.",
-  sas_invalid: "Check the SAS URL in Settings.",
-  sas_expired: "Generate a new SAS URL and save it in Settings.",
-  source_unavailable: "Sign in to Google, then start the download again.",
-  ticket_expired: "Start the download again in Google Takeout.",
-  ticket_too_long: "Sign out of unused Google accounts, then start the download again.",
-  azure_rejected: "Check the SAS URL permissions in Settings.",
-};
-
-const DEFAULT_NEXT_STEP = "Start the download again in Google Takeout.";
 
 export function phaseLabel(phase: TransferPhase): string {
   return PHASE_LABELS[phase];
@@ -95,8 +80,7 @@ export function toTransferView(transfer: Transfer, now: number): TransferView {
     percent: fraction === undefined ? undefined : Math.round(fraction * 100),
     sizeText: sizeText(transfer),
     speedText: speedText(transfer, now),
-    errorText: failure ? (transfer.error?.message ?? "The transfer did not finish.") : undefined,
-    nextStep: failure ? (NEXT_STEPS[transfer.error?.code ?? transfer.phase] ?? DEFAULT_NEXT_STEP) : undefined,
+    errorText: failure ? (transfer.error?.message ?? "The transfer did not finish. Start the download again in Google Takeout.") : undefined,
     cancellable: !isTerminal(transfer.phase),
   };
 }
