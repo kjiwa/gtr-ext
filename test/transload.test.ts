@@ -62,9 +62,14 @@ async function codeOf(promise: Promise<unknown>): Promise<TransloadErrorCode | u
 describe("probe", () => {
   it("reads the total from Content-Range with a ranged, redirect-manual, credential-less GET", async () => {
     const { fetchFn, calls } = fakeFetch(() => probeResponse(12345));
-    expect(await probe(fetchFn, "https://proxy.example.com/t/abc")).toBe(12345);
+    expect(await probe(fetchFn, "https://proxy.example.com/t/abc")).toEqual({ total: 12345, contentDisposition: null });
     expect(calls[0]).toMatchObject({ url: "https://proxy.example.com/t/abc", method: "GET", headers: { range: "bytes=0-0" } });
     expect(calls[0]?.headers["authorization"]).toBeUndefined();
+  });
+
+  it("returns the Content-Disposition header", async () => {
+    const { fetchFn } = fakeFetch(() => new Response("x", { status: 206, headers: { "content-range": "bytes 0-0/9", "content-disposition": 'attachment; filename="a.zip"' } }));
+    expect(await probe(fetchFn, "u")).toEqual({ total: 9, contentDisposition: 'attachment; filename="a.zip"' });
   });
 
   it.each([
@@ -327,6 +332,20 @@ describe("transload", () => {
     const { fetchFn, calls } = proxyAndAzure(1);
     expect(await codeOf(transload(CONFIG, { ...JOB, blobName }, { fetch: fetchFn, now: () => NOW, retry }))).toBe("invalid_blob_name");
     expect(calls).toHaveLength(0);
+  });
+
+  it("derives the blob name from the probe's Content-Disposition", async () => {
+    const disposition = "attachment; filename=real.zip";
+    const { fetchFn, calls } = proxyAndAzure(1, (call) => (call.url.includes("/t/") ? new Response("x", { status: 206, headers: { "content-range": "bytes 0-0/1", "content-disposition": disposition } }) : undefined));
+    await transload(CONFIG, { ...JOB, blobName: (contentDisposition) => (contentDisposition === disposition ? "named/real.zip" : "wrong") }, { fetch: fetchFn, now: () => NOW, retry });
+    const stage = calls.find((call) => call.method === "PUT");
+    expect(stage?.url).toContain("/azure/gtrtest/takeouts/named/real.zip?");
+  });
+
+  it("rejects an invalid blob name returned by the resolver before staging", async () => {
+    const { fetchFn, calls } = proxyAndAzure(1);
+    expect(await codeOf(transload(CONFIG, { ...JOB, blobName: () => "../x" }, { fetch: fetchFn, now: () => NOW, retry }))).toBe("invalid_blob_name");
+    expect(calls.filter((call) => call.method === "PUT")).toHaveLength(0);
   });
 
   it("rejects a ticket that overflows Azure's 2 KiB copy-source limit", async () => {

@@ -25,7 +25,7 @@ export interface TransloadConfig {
 export interface TransloadJob {
   takeoutUrl: string;
   cookie: string;
-  blobName: string;
+  blobName: string | ((contentDisposition: string | null) => string);
 }
 
 export interface TransloadOptions {
@@ -140,7 +140,12 @@ async function probeFailure(response: Response): Promise<TransloadError> {
   return new TransloadError("source_unavailable", `Takeout returned HTTP ${status}.`);
 }
 
-export async function probe(fetchFn: FetchFn, url: string, signal?: AbortSignal): Promise<number> {
+export interface ProbeResult {
+  total: number;
+  contentDisposition: string | null;
+}
+
+export async function probe(fetchFn: FetchFn, url: string, signal?: AbortSignal): Promise<ProbeResult> {
   const response = await send(fetchFn, url, { headers: { Range: "bytes=0-0" }, redirect: "manual", credentials: "omit", ...(signal && { signal }) });
   if (response.status !== 206) {
     throw await probeFailure(response);
@@ -153,7 +158,7 @@ export async function probe(fetchFn: FetchFn, url: string, signal?: AbortSignal)
   if (total === undefined || !Number.isSafeInteger(Number(total))) {
     throw new TransloadError("protocol_error", "The proxy returned an unexpected response to the size probe.");
   }
-  return Number(total);
+  return { total: Number(total), contentDisposition: response.headers.get("content-disposition") };
 }
 
 export function planBlocks(total: number, blockBytes: number): Block[] {
@@ -220,7 +225,7 @@ function validateSas(containerSasUrl: string, now: number): void {
 
 function requireFittingCopySource(copySource: string): void {
   if (copySource.length > MAX_COPY_SOURCE_LENGTH) {
-    throw new TransloadError("ticket_too_long", "The Takeout cookie is too large to fit in Azure's 2 KiB copy-source limit.");
+    throw new TransloadError("ticket_too_long", "The Takeout cookie is too large to fit in Azure's 2 KiB copy-source limit. Sign out of Google accounts you do not need, then start the download again.");
   }
 }
 
@@ -257,21 +262,26 @@ export async function transload(config: TransloadConfig, job: TransloadJob, opti
   const base = options.fetch ?? globalThis.fetch.bind(globalThis);
   const fetchFn = retrying(base, { now, ...options.retry });
   const stageFetch = retrying(base, { now, ...options.retry, extraStatuses: [409] });
-  const target: Target = { proxyBase: normalizeProxyBase(config.proxyBase), secret: config.secret, containerSasUrl: config.containerSasUrl, blobName: job.blobName };
+  const proxyBase = normalizeProxyBase(config.proxyBase);
 
   if (signal?.aborted) {
     throw abortedError();
   }
-  validateBlobName(job.blobName);
+  if (typeof job.blobName === "string") {
+    validateBlobName(job.blobName);
+  }
   validateSas(config.containerSasUrl, startedAt);
   const ticket = await seal(config.secret, { u: job.takeoutUrl, c: job.cookie }, { now: Math.floor(startedAt / 1000) });
-  const copySource = ticketUrl(target.proxyBase, ticket);
+  const copySource = ticketUrl(proxyBase, ticket);
   requireFittingCopySource(copySource);
 
-  const total = await probe(fetchFn, copySource, signal);
+  const { total, contentDisposition } = await probe(fetchFn, copySource, signal);
   if (total === 0) {
     throw new TransloadError("empty_archive", "The Takeout archive is empty.");
   }
+  const blobName = typeof job.blobName === "string" ? job.blobName : job.blobName(contentDisposition);
+  validateBlobName(blobName);
+  const target: Target = { proxyBase, secret: config.secret, containerSasUrl: config.containerSasUrl, blobName };
   const blocks = planBlocks(total, (options.blockSizeMiB ?? DEFAULT_BLOCK_SIZE_MIB) * MIB);
   options.onProgress?.(0, total);
   await stageAll(stageFetch, target, blocks, copySource, total, options);
