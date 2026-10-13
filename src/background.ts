@@ -51,7 +51,7 @@ export function createBackground(deps: BackgroundDeps) {
   let lastSetupNotice = -Infinity;
 
   // A restarted worker has lost its in-flight copies, so earlier entries are stale before any event is handled.
-  const ready = store.markInterrupted();
+  const ready = store.markInterrupted().catch(() => undefined);
 
   function startKeepalive(): void {
     keepalive ??= deps.setInterval(() => void api.runtime.getPlatformInfo().catch(() => undefined), KEEPALIVE_MS);

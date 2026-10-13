@@ -55,11 +55,12 @@ function urlFilename(url: string): string | undefined {
 }
 
 function capLength(name: string): string {
-  if (name.length <= MAX_LENGTH) {
+  const characters = Array.from(name);
+  if (characters.length <= MAX_LENGTH) {
     return name;
   }
-  const extension = EXTENSION.exec(name)?.[0] ?? "";
-  return name.slice(0, MAX_LENGTH - extension.length) + extension;
+  const extension = Array.from(EXTENSION.exec(name)?.[0] ?? "");
+  return characters.slice(0, MAX_LENGTH - extension.length).join("") + extension.join("");
 }
 
 export function sanitizeFilename(name: string): string {

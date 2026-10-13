@@ -92,7 +92,7 @@ async function onSave(event: Event): Promise<void> {
     saveStatus.textContent = "Not saved. Fix the fields marked above.";
     return;
   }
-  const request = api.permissions.request({ origins: [proxyOriginPattern(values.proxyBase)] });
+  const request = api.permissions.request({ origins: [proxyOriginPattern(values.proxyBase)] }).catch(() => false);
   await saveConfig({ proxyBase: normalizeProxyBase(values.proxyBase), secret: values.secret, sasUrl: values.sasUrl }, api);
   saveStatus.textContent = (await request) ? "Saved." : "Saved, but access to the proxy was not granted.";
   await renderPermission();
