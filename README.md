@@ -113,7 +113,7 @@ Load `dist/` as an unpacked extension as described under Install. `npm run build
 
 `test/vectors.json` pins the ticket format and URL rules and is byte-identical to the copy in gtr-proxy. CI fails if it differs from the proxy's `master`; locally, `test/vectors.sync.test.ts` compares against `../gtr-proxy` when that checkout exists.
 
-Release: set `version` in `static/manifest.json`, then push a tag `vX.Y.Z`. CI builds the zip and attaches it to a GitHub release.
+Release: add a `## X.Y.Z` section to `CHANGELOG.md`, then run [`gh cut X.Y.Z`](https://github.com/kjiwa/gh-cut#readme). It bumps the version, tags the merged commit, and CI builds the zip and attaches it to the GitHub release.
 
 `addons-linter` reports a warning that `background.service_worker` is ignored on Firefox and one that Firefox for Android is not covered by `strict_min_version`. The manifest lists both `service_worker` (Chrome) and `scripts` (Firefox) on purpose, and the extension targets desktop.
 

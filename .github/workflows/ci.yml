@@ -39,10 +39,20 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.ref_name }}
     steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: gh extension install kjiwa/gh-cut --pin v0.1.0
+      - run: gh cut check "$TAG" "$TAG"
+      - run: gh cut notes "${TAG#v}" > "$RUNNER_TEMP/notes.md"
       - uses: actions/download-artifact@v8
         with:
           name: gtr-ext
       - uses: softprops/action-gh-release@v3
         with:
           files: gtr-ext-*.zip
+          body_path: ${{ runner.temp }}/notes.md
