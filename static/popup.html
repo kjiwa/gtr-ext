@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Takeout Rocket</title>
+    <link rel="stylesheet" href="ui.css" />
+    <script defer src="popup.js"></script>
+  </head>
+  <body class="popup-page">
+    <main class="popup">
+      <header class="popup-header">
+        <h1>Takeout Rocket</h1>
+        <div class="switch-label">
+          <span id="switch-state">Off</span>
+          <button id="enabled" class="switch" type="button" role="switch" aria-checked="false" aria-label="Intercept Takeout downloads" disabled>
+            <span class="switch-track"></span>
+          </button>
+        </div>
+      </header>
+      <div id="setup-banner" class="notice warn" hidden>
+        <p><span class="label">Setup incomplete.</span> <span id="setup-problem"></span></p>
+        <button id="open-settings" class="button" type="button">Open settings</button>
+      </div>
+      <ul id="transfers" class="transfers" aria-label="Transfers"></ul>
+      <p id="empty" class="empty" hidden>No transfers yet. Start a download in Google Takeout.</p>
+      <footer class="popup-footer">
+        <button id="clear-finished" class="button" type="button" disabled>Clear finished</button>
+        <button id="settings" class="link-button" type="button">Settings</button>
+      </footer>
+      <p id="status" class="visually-hidden" role="status" aria-live="polite"></p>
+    </main>
+  </body>
+</html>
