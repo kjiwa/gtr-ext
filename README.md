@@ -105,7 +105,7 @@ npm run lint        # eslint and prettier
 npm run typecheck
 npm test            # vitest
 npm run build       # writes dist/
-npm run lint:ext    # web-ext lint on dist/
+npm run lint:ext    # addons-linter on dist/
 npm run pkg         # builds a production dist/ and writes gtr-ext-<version>.zip
 ```
 
@@ -115,7 +115,7 @@ Load `dist/` as an unpacked extension as described under Install. `npm run build
 
 Release: set `version` in `static/manifest.json`, then push a tag `vX.Y.Z`. CI builds the zip and attaches it to a GitHub release.
 
-`web-ext lint` reports a warning that `background.service_worker` is ignored on Firefox and one that Firefox for Android is not covered by `strict_min_version`. The manifest lists both `service_worker` (Chrome) and `scripts` (Firefox) on purpose, and the extension targets desktop.
+`addons-linter` reports a warning that `background.service_worker` is ignored on Firefox and one that Firefox for Android is not covered by `strict_min_version`. The manifest lists both `service_worker` (Chrome) and `scripts` (Firefox) on purpose, and the extension targets desktop.
 
 ## Privacy
 
