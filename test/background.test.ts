@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createBackground, formatBytes, type BackgroundDeps } from "../src/background";
+import { createBackground, type BackgroundDeps } from "../src/background";
 import { TransloadError, type TransloadOptions, type TransloadResult } from "../src/transload";
 import { INTERRUPTED_MESSAGE, TRANSFERS_KEY, type Transfer } from "../src/transfers";
 import { fakeExt, type FakeExt } from "./fake-ext";
@@ -191,6 +191,28 @@ describe("transfers", () => {
     expect(fake.notices.at(-1)?.title).toBe("Takeout transfer cancelled");
   });
 
+  it("clears finished transfers on request without touching active ones", async () => {
+    const started = deferred();
+    const release = deferred();
+    const old: Transfer = { id: "old", name: "old.zip", phase: "done", bytesDone: 1, bytesTotal: 1, startedAt: 1 };
+    const { bg, transfers } = harness(
+      async () => {
+        started.resolve();
+        await release.promise;
+        return RESULT;
+      },
+      { ...READY, [TRANSFERS_KEY]: { old } },
+    );
+    const running = bg.onCreated({ id: 1, url: TAKEOUT, filename: "a.zip" });
+    await started.promise;
+    bg.onMessage({ type: "clearFinished" });
+    await until(() => !("old" in transfers()));
+    expect(Object.keys(transfers())).toEqual(["t1"]);
+    release.resolve();
+    await running;
+    expect(transfers()["t1"]?.phase).toBe("done");
+  });
+
   it("records two concurrent downloads independently", async () => {
     const gates = [deferred(), deferred()];
     let next = 0;
@@ -253,16 +275,5 @@ describe("keepalive", () => {
     gates[1]!.resolve();
     await second;
     expect(intervals[0]?.cleared).toBe(true);
-  });
-});
-
-describe("formatBytes", () => {
-  it.each([
-    [0, "0 B"],
-    [1023, "1023 B"],
-    [1024, "1.0 KiB"],
-    [5 * 1024 ** 3, "5.0 GiB"],
-  ])("formats %i", (bytes, expected) => {
-    expect(formatBytes(bytes)).toBe(expected);
   });
 });

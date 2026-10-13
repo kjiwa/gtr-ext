@@ -44,7 +44,30 @@ export interface ExtApi {
   };
 }
 
+export interface StorageChange {
+  newValue?: unknown;
+}
+
+export interface UiApi {
+  storage: {
+    local: StorageArea;
+    onChanged: ExtEvent<[Record<string, StorageChange>, string]>;
+  };
+  runtime: {
+    sendMessage(message: unknown): Promise<unknown>;
+    openOptionsPage(): Promise<void>;
+  };
+  permissions: {
+    contains(request: { origins: string[] }): Promise<boolean>;
+    request(request: { origins: string[] }): Promise<boolean>;
+  };
+}
+
 const scope = globalThis as unknown as { browser?: ExtApi; chrome?: ExtApi };
 
 // Absent outside an extension context (unit tests inject a fake instead).
 export const ext = (scope.browser ?? scope.chrome) as ExtApi;
+
+const uiScope = globalThis as unknown as { browser?: UiApi; chrome?: UiApi };
+
+export const uiExt = (uiScope.browser ?? uiScope.chrome) as UiApi;

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Takeout Rocket settings</title>
+    <link rel="stylesheet" href="ui.css" />
+    <script defer src="options.js"></script>
+  </head>
+  <body>
+    <main class="page">
+      <h1>Takeout Rocket settings</h1>
+      <p class="muted">The proxy sees your Google cookies and Azure SAS URL in transit. Use a Worker you deployed yourself. <a href="https://github.com/kjiwa/gtr-proxy#readme" target="_blank" rel="noopener noreferrer">Deploy your own proxy</a>.</p>
+      <form id="form" class="stack" novalidate>
+        <section aria-labelledby="proxy-heading">
+          <h2 id="proxy-heading">Proxy</h2>
+          <div class="field">
+            <label for="proxy">Proxy URL</label>
+            <input id="proxy" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://gtr.example.workers.dev" aria-describedby="proxy-error" />
+            <p id="proxy-error" class="error-text"></p>
+          </div>
+          <p class="muted">The browser must be allowed to contact your proxy, because the extension sends requests to it directly.</p>
+          <div class="row">
+            <span id="permission-status" class="muted" role="status"></span>
+            <button id="grant" class="button" type="button" hidden>Grant access</button>
+          </div>
+        </section>
+        <section aria-labelledby="secret-heading">
+          <h2 id="secret-heading">Secret</h2>
+          <div class="field">
+            <label for="secret">Shared secret</label>
+            <input id="secret" type="password" autocomplete="off" spellcheck="false" class="mono" aria-describedby="secret-error secret-help" />
+            <p id="secret-error" class="error-text"></p>
+          </div>
+          <div class="row">
+            <button id="toggle-secret" class="button" type="button" aria-pressed="false">Show</button>
+            <button id="generate" class="button" type="button">Generate</button>
+            <button id="copy" class="button" type="button">Copy</button>
+            <span id="copy-status" class="muted" role="status"></span>
+          </div>
+          <p id="secret-help" class="muted">Set it on your Worker with <code>npx wrangler secret put GTR_SECRET</code>. The same secret must be set on the Worker.</p>
+        </section>
+        <section aria-labelledby="azure-heading">
+          <h2 id="azure-heading">Azure</h2>
+          <div class="field">
+            <label for="sas">Container SAS URL</label>
+            <input id="sas" type="url" inputmode="url" autocomplete="off" spellcheck="false" class="mono" aria-describedby="sas-error sas-notice" />
+            <p id="sas-error" class="error-text"></p>
+          </div>
+          <p id="sas-notice" class="notice" hidden></p>
+        </section>
+        <section aria-labelledby="test-heading">
+          <h2 id="test-heading">Test connection</h2>
+          <div class="row">
+            <button id="test" class="button" type="button">Test connection</button>
+          </div>
+          <p id="test-result" class="notice" role="status" aria-live="polite" hidden></p>
+        </section>
+        <div class="save-bar">
+          <button id="save" class="button primary" type="submit">Save</button>
+          <span id="save-status" class="muted" role="status" aria-live="polite"></span>
+        </div>
+      </form>
+    </main>
+  </body>
+</html>

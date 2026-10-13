@@ -1,4 +1,5 @@
 import { ext, type DownloadItemInfo, type ExtApi } from "./browser";
+import { formatBytes } from "./ui/format";
 import { isReady, loadConfig, type Config } from "./config";
 import { resolveFilename } from "./filename";
 import { isTakeoutUrl } from "./protocol/takeout";
@@ -18,21 +19,10 @@ const KEEPALIVE_MS = 20_000;
 const SETUP_NOTICE_INTERVAL_MS = 60_000;
 const SETUP_NOTICE_ID = "gtr-setup";
 const ICON_PATH = "logo192.png";
-const UNITS = ["B", "KiB", "MiB", "GiB", "TiB"];
 
 interface TransferState {
   name: string;
   copying: boolean;
-}
-
-export function formatBytes(bytes: number): string {
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1024 && unit < UNITS.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  return `${unit === 0 ? value : value.toFixed(1)} ${UNITS[unit]}`;
 }
 
 function summarize(result: TransloadResult): string {
@@ -47,6 +37,10 @@ function toTransloadError(error: unknown): TransloadError {
 function isCancelMessage(message: unknown): message is { type: "cancel"; id: string } {
   const candidate = message as { type?: unknown; id?: unknown } | null;
   return candidate?.type === "cancel" && typeof candidate.id === "string";
+}
+
+function isClearFinishedMessage(message: unknown): boolean {
+  return (message as { type?: unknown } | null)?.type === "clearFinished";
 }
 
 export function createBackground(deps: BackgroundDeps) {
@@ -167,6 +161,8 @@ export function createBackground(deps: BackgroundDeps) {
   function onMessage(message: unknown): void {
     if (isCancelMessage(message)) {
       controllers.get(message.id)?.abort();
+    } else if (isClearFinishedMessage(message)) {
+      void store.clearFinished();
     }
   }
 

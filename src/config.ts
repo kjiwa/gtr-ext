@@ -19,12 +19,12 @@ function text(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
-export async function loadConfig(api: ExtApi = ext): Promise<Config> {
+export async function loadConfig(api: Pick<ExtApi, "storage"> = ext): Promise<Config> {
   const stored = await api.storage.local.get(KEYS);
   return { enabled: stored["enabled"] === true, proxyBase: text(stored["proxyBase"]), secret: text(stored["secret"]), sasUrl: text(stored["sasUrl"]) };
 }
 
-export async function saveConfig(partial: Partial<Config>, api: ExtApi = ext): Promise<void> {
+export async function saveConfig(partial: Partial<Config>, api: Pick<ExtApi, "storage"> = ext): Promise<void> {
   await api.storage.local.set({ ...partial });
 }
 
