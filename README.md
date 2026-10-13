@@ -32,17 +32,16 @@ Azure's `Put Block From URL` can fetch a URL but cannot send cookies, so the Wor
 - The secret, proxy URL and SAS URL are stored in the extension's local storage in plain text. Any code that can read it already runs as the extension or as you on your machine, where it could read the same cookies, and the secret protects only your own Worker and your own container until the SAS expires.
 - The proxy URL needs a host permission that the extension requests when you save settings. It is optional, so the extension holds no access to other sites by default.
 
-| Permission                                   | Why                                                                        |
-| -------------------------------------------- | -------------------------------------------------------------------------- |
-| `downloads`                                  | Detect Takeout downloads, cancel them and read the filename.               |
-| `cookies`                                    | Read the Google cookies the ticket carries.                                |
-| `storage`                                    | Keep settings and transfer state.                                          |
-| `notifications`                              | Report finished and failed transfers.                                      |
-| `https://takeout.google.com/*`               | Cookie access for the Takeout page host.                                   |
-| `https://*.google.com/*`                     | Cookie access for `takeout-download.usercontent.google.com`.               |
-| `https://*.googleusercontent.com/*`          | Cookie access for `apidata.googleusercontent.com` download hosts.          |
-| `https://storage.googleapis.com/*`           | Cookie access for Takeout archives served from Cloud Storage.              |
-| Optional: `https://*/*`, localhost addresses | Contact your proxy. Requested for the proxy origin only, when you save it. |
+| Permission                                   | Why                                                                                   |
+| -------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `downloads`                                  | Detect Takeout downloads, cancel them and read the filename.                          |
+| `cookies`                                    | Read the Google cookies the ticket carries.                                           |
+| `storage`                                    | Keep settings and transfer state.                                                     |
+| `notifications`                              | Report finished and failed transfers.                                                 |
+| `https://*.google.com/*`                     | Cookie access for `takeout.google.com` and `takeout-download.usercontent.google.com`. |
+| `https://*.googleusercontent.com/*`          | Cookie access for `apidata.googleusercontent.com` download hosts.                     |
+| `https://storage.googleapis.com/*`           | Cookie access for Takeout archives served from Cloud Storage.                         |
+| Optional: `https://*/*`, localhost addresses | Contact your proxy. Requested for the proxy origin only, when you save it.            |
 
 ## Requirements
 
