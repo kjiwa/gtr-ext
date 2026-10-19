@@ -132,6 +132,18 @@ describe("transfers", () => {
     expect(fake.notices[1]).toMatchObject({ title: "Takeout transfer complete", message: "real.zip: 2.0 KiB in 2 s (1.0 KiB/s)", iconUrl: "chrome-extension://fake/logo192.png" });
   });
 
+  it("passes the configured accessTier to transload", async () => {
+    const seen: { config?: object }[] = [];
+    const capture: TransloadFn = async (config, job, options) => {
+      seen.push({ config });
+      return succeeding()(config, job, options);
+    };
+    await harness(capture, { ...READY, accessTier: "Archive" }).bg.onCreated({ id: 1, url: TAKEOUT });
+    await harness(capture, { ...READY }).bg.onCreated({ id: 2, url: TAKEOUT });
+    expect(seen[0]?.config).toMatchObject({ accessTier: "Archive" });
+    expect(seen[1]?.config).toMatchObject({ accessTier: "" });
+  });
+
   it("passes through intermediate phases", async () => {
     const phases: string[] = [];
     const gate = deferred();

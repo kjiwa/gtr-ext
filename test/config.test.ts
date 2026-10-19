@@ -3,11 +3,11 @@ import { generateSecret, isReady, loadConfig, saveConfig, validateConfig, type C
 import { fakeExt } from "./fake-ext";
 
 const NOW = Date.parse("2026-01-01T00:00:00Z");
-const GOOD: Config = { enabled: true, proxyBase: "https://proxy.example.com", secret: "s3cret", sasUrl: "https://gtrtest.blob.core.windows.net/takeouts?sp=racw&se=2026-01-02T00%3A00%3A00Z&sig=SIG%3D" };
+const GOOD: Config = { enabled: true, proxyBase: "https://proxy.example.com", secret: "s3cret", sasUrl: "https://gtrtest.blob.core.windows.net/takeouts?sp=racw&se=2026-01-02T00%3A00%3A00Z&sig=SIG%3D", accessTier: "Archive" };
 
 describe("loadConfig and saveConfig", () => {
   it("defaults to disabled with empty fields", async () => {
-    expect(await loadConfig(fakeExt().api)).toEqual({ enabled: false, proxyBase: "", secret: "", sasUrl: "" });
+    expect(await loadConfig(fakeExt().api)).toEqual({ enabled: false, proxyBase: "", secret: "", sasUrl: "", accessTier: "" });
   });
 
   it("round-trips a partial save without disturbing other keys", async () => {
@@ -17,9 +17,14 @@ describe("loadConfig and saveConfig", () => {
     expect(await loadConfig(api)).toEqual({ ...GOOD, enabled: false });
   });
 
+  it("drops an unknown access tier", async () => {
+    const { api } = fakeExt({ accessTier: "Cold" });
+    expect((await loadConfig(api)).accessTier).toBe("");
+  });
+
   it("ignores stored values of the wrong type", async () => {
     const { api } = fakeExt({ enabled: "yes", proxyBase: 5 });
-    expect(await loadConfig(api)).toEqual({ enabled: false, proxyBase: "", secret: "", sasUrl: "" });
+    expect(await loadConfig(api)).toEqual({ enabled: false, proxyBase: "", secret: "", sasUrl: "", accessTier: "" });
   });
 });
 
@@ -30,7 +35,7 @@ describe("validateConfig", () => {
   });
 
   it("reports every empty field", () => {
-    const problems = validateConfig({ enabled: true, proxyBase: "", secret: "", sasUrl: "" }, NOW);
+    const problems = validateConfig({ enabled: true, proxyBase: "", secret: "", sasUrl: "", accessTier: "" }, NOW);
     expect(Object.keys(problems).sort()).toEqual(["proxyBase", "sasUrl", "secret"]);
   });
 

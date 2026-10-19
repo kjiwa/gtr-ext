@@ -48,6 +48,16 @@
             <p id="sas-error" class="error-text"></p>
           </div>
           <p id="sas-notice" class="notice" hidden></p>
+          <div class="field">
+            <label for="tier">Access tier</label>
+            <select id="tier" aria-describedby="tier-help">
+              <option value="">Account default</option>
+              <option value="Hot">Hot</option>
+              <option value="Cool">Cool</option>
+              <option value="Archive">Archive</option>
+            </select>
+          </div>
+          <p id="tier-help" class="muted">Archive has a 180-day minimum and must be rehydrated before download.</p>
         </section>
         <section aria-labelledby="test-heading">
           <h2 id="test-heading">Test connection</h2>

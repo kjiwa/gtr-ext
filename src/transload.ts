@@ -1,3 +1,4 @@
+import type { AccessTier } from "./access-tier";
 import { buildRelayUrl } from "./protocol/azure";
 import { seal } from "./protocol/ticket";
 import { normalizeProxyBase, ticketUrl } from "./protocol/urls";
@@ -20,6 +21,7 @@ export interface TransloadConfig {
   proxyBase: string;
   secret: string;
   containerSasUrl: string;
+  accessTier?: AccessTier | "";
 }
 
 export interface TransloadJob {
@@ -48,6 +50,7 @@ export interface Target {
   secret: string;
   containerSasUrl: string;
   blobName: string;
+  accessTier?: AccessTier | "";
 }
 
 export interface Block {
@@ -197,7 +200,7 @@ function blockListXml(blocks: Block[]): string {
 
 export async function commitBlockList(fetchFn: FetchFn, target: Target, blocks: Block[], signal?: AbortSignal): Promise<void> {
   const url = buildRelayUrl(target.proxyBase, target.containerSasUrl, target.blobName, { comp: "blocklist" });
-  const headers = { ...azureHeaders(target.secret), "Content-Type": "application/xml" };
+  const headers = { ...azureHeaders(target.secret), "Content-Type": "application/xml", ...(target.accessTier && { "x-ms-access-tier": target.accessTier }) };
   const response = await send(fetchFn, url, { method: "PUT", headers, body: blockListXml(blocks), ...(signal && { signal }) });
   if (response.status !== 201) {
     throw await azureError(response, "committing the blob");
@@ -281,7 +284,7 @@ export async function transload(config: TransloadConfig, job: TransloadJob, opti
   }
   const blobName = typeof job.blobName === "string" ? job.blobName : job.blobName(contentDisposition);
   validateBlobName(blobName);
-  const target: Target = { proxyBase, secret: config.secret, containerSasUrl: config.containerSasUrl, blobName };
+  const target: Target = { proxyBase, secret: config.secret, containerSasUrl: config.containerSasUrl, blobName, ...(config.accessTier !== undefined && { accessTier: config.accessTier }) };
   const blocks = planBlocks(total, (options.blockSizeMiB ?? DEFAULT_BLOCK_SIZE_MIB) * MIB);
   options.onProgress?.(0, total);
   await stageAll(stageFetch, target, blocks, copySource, total, options);

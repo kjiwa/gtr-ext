@@ -85,7 +85,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
   color: inherit;
 }
@@ -188,7 +189,8 @@ h2 {
 
 input[type="text"],
 input[type="password"],
-input[type="url"] {
+input[type="url"],
+select {
   width: 100%;
   min-height: var(--touch);
   padding: var(--space-2) var(--space-3);
