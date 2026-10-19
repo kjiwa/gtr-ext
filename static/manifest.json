@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Gargantuan Takeout Rocket",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "kjiwa",
   "description": "Copies Google Takeout archives to Azure Blob Storage through your own Cloudflare Worker.",
   "minimum_chrome_version": "121",
