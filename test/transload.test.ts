@@ -217,6 +217,18 @@ describe("commitBlockList", () => {
     expect(call.body).toBe(`<?xml version="1.0" encoding="utf-8"?><BlockList>${[0, 1, 2].map((i) => `<Latest>${btoa(`block-00000${i}`)}</Latest>`).join("")}</BlockList>`);
   });
 
+  it("sends x-ms-access-tier when the target has one", async () => {
+    const { fetchFn, calls } = fakeFetch(() => new Response(null, { status: 201 }));
+    await commitBlockList(fetchFn, { ...TARGET, accessTier: "Archive" }, planBlocks(1, 1));
+    expect(calls[0]!.headers["x-ms-access-tier"]).toBe("Archive");
+  });
+
+  it("omits x-ms-access-tier when unset", async () => {
+    const { fetchFn, calls } = fakeFetch(() => new Response(null, { status: 201 }));
+    await commitBlockList(fetchFn, TARGET, planBlocks(1, 1));
+    expect(calls[0]!.headers).not.toHaveProperty("x-ms-access-tier");
+  });
+
   it("maps a rejected commit", async () => {
     const { fetchFn } = fakeFetch(() => azureXml(400, "InvalidBlockList"));
     expect((await commitBlockList(fetchFn, TARGET, planBlocks(1, 1)).catch((e: unknown) => e)) as TransloadError).toMatchObject({ code: "azure_rejected", message: "Azure returned HTTP 400 (InvalidBlockList) while committing the blob." });
@@ -243,6 +255,15 @@ describe("transload", () => {
     expect(progress[0]).toEqual([0, 5 * MIB]);
     expect(progress.at(-1)).toEqual([5 * MIB, 5 * MIB]);
     expect(progress.map(([done]) => done)).toEqual([...progress.map(([done]) => done)].sort((a, b) => a - b));
+  });
+
+  it("carries the access tier to the commit only", async () => {
+    const { fetchFn, calls } = proxyAndAzure(3 * MIB);
+    await transload({ ...CONFIG, accessTier: "Cool" }, JOB, { blockSizeMiB: 1, fetch: fetchFn, now: () => NOW, retry });
+    const tiered = calls.filter((call) => call.headers["x-ms-access-tier"] !== undefined);
+    expect(tiered).toHaveLength(1);
+    expect(tiered[0]!.url).toContain("comp=blocklist");
+    expect(tiered[0]!.headers["x-ms-access-tier"]).toBe("Cool");
   });
 
   it("stages all blocks concurrently", async () => {

@@ -108,7 +108,7 @@ export function createBackground(deps: BackgroundDeps) {
     const onProgress = (bytesDone: number, bytesTotal: number): void => {
       void store.update(id, progressPatch(state, bytesDone, bytesTotal)).catch(() => undefined);
     };
-    return deps.transload({ proxyBase: config.proxyBase, secret: config.secret, containerSasUrl: config.sasUrl }, { takeoutUrl: url, cookie, blobName }, { signal, onProgress });
+    return deps.transload({ proxyBase: config.proxyBase, secret: config.secret, containerSasUrl: config.sasUrl, accessTier: config.accessTier }, { takeoutUrl: url, cookie, blobName }, { signal, onProgress });
   }
 
   async function finishFailed(id: string, name: string, error: unknown): Promise<void> {

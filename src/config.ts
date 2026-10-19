@@ -1,3 +1,4 @@
+import { parseAccessTier, type AccessTier } from "./access-tier";
 import { ext, type ExtApi } from "./browser";
 import { normalizeProxyBase } from "./protocol/urls";
 import { toBase64Url } from "./protocol/ticket";
@@ -8,12 +9,13 @@ export interface Config {
   proxyBase: string;
   secret: string;
   sasUrl: string;
+  accessTier: AccessTier | "";
 }
 
 export type ConfigProblems = Partial<Record<"proxyBase" | "secret" | "sasUrl", string>>;
 
 const SECRET_BYTES = 32;
-const KEYS = ["enabled", "proxyBase", "secret", "sasUrl"];
+const KEYS = ["enabled", "proxyBase", "secret", "sasUrl", "accessTier"];
 
 function text(value: unknown): string {
   return typeof value === "string" ? value : "";
@@ -21,7 +23,7 @@ function text(value: unknown): string {
 
 export async function loadConfig(api: Pick<ExtApi, "storage"> = ext): Promise<Config> {
   const stored = await api.storage.local.get(KEYS);
-  return { enabled: stored["enabled"] === true, proxyBase: text(stored["proxyBase"]), secret: text(stored["secret"]), sasUrl: text(stored["sasUrl"]) };
+  return { enabled: stored["enabled"] === true, proxyBase: text(stored["proxyBase"]), secret: text(stored["secret"]), sasUrl: text(stored["sasUrl"]), accessTier: parseAccessTier(stored["accessTier"]) };
 }
 
 export async function saveConfig(partial: Partial<Config>, api: Pick<ExtApi, "storage"> = ext): Promise<void> {

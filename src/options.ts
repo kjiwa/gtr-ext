@@ -1,4 +1,5 @@
 import { uiExt } from "./browser";
+import { parseAccessTier } from "./access-tier";
 import { generateSecret, loadConfig, saveConfig, validateConfig, type Config, type ConfigProblems } from "./config";
 import { normalizeProxyBase } from "./protocol/urls";
 import { byId, el } from "./ui/dom";
@@ -12,12 +13,13 @@ const form = byId<HTMLFormElement>("form");
 const proxyInput = byId<HTMLInputElement>("proxy");
 const secretInput = byId<HTMLInputElement>("secret");
 const sasInput = byId<HTMLInputElement>("sas");
+const tierSelect = byId<HTMLSelectElement>("tier");
 const grantButton = byId<HTMLButtonElement>("grant");
 const permissionStatus = byId("permission-status");
 const saveStatus = byId("save-status");
 
 function formValues(): Config {
-  return { enabled: false, proxyBase: proxyInput.value.trim(), secret: secretInput.value, sasUrl: sasInput.value.trim() };
+  return { enabled: false, proxyBase: proxyInput.value.trim(), secret: secretInput.value, sasUrl: sasInput.value.trim(), accessTier: parseAccessTier(tierSelect.value) };
 }
 
 function showNotice(element: HTMLElement, level: NoticeLevel | undefined, text: string): void {
@@ -93,7 +95,7 @@ async function onSave(event: Event): Promise<void> {
     return;
   }
   const request = api.permissions.request({ origins: [proxyOriginPattern(values.proxyBase)] }).catch(() => false);
-  await saveConfig({ proxyBase: normalizeProxyBase(values.proxyBase), secret: values.secret, sasUrl: values.sasUrl }, api);
+  await saveConfig({ proxyBase: normalizeProxyBase(values.proxyBase), secret: values.secret, sasUrl: values.sasUrl, accessTier: values.accessTier }, api);
   saveStatus.textContent = (await request) ? "Saved." : "Saved, but access to the proxy was not granted.";
   await renderPermission();
 }
@@ -150,11 +152,12 @@ async function main(): Promise<void> {
   proxyInput.value = config.proxyBase;
   secretInput.value = config.secret;
   sasInput.value = config.sasUrl;
+  tierSelect.value = config.accessTier;
   showProblems(validateConfig(formValues(), Date.now()), true);
   renderSasNotice();
   await renderPermission();
   form.addEventListener("submit", (event) => void onSave(event));
-  for (const input of [proxyInput, secretInput, sasInput]) {
+  for (const input of [proxyInput, secretInput, sasInput, tierSelect]) {
     input.addEventListener("input", onInput);
   }
   proxyInput.addEventListener("input", () => void renderPermission());

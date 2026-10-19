@@ -72,7 +72,7 @@ Firefox: open `about:debugging#/runtime/this-firefox`, choose Load Temporary Add
 
    The command prints a token. The SAS URL is `https://<account>.blob.core.windows.net/<container>?<token>`. The extension accepts a container-level SAS whose permissions include `w` or `c`; `racw` satisfies that check.
 
-4. Open the extension's settings. Paste the proxy URL, generate a secret (or paste yours), set the same secret on the Worker, paste the SAS URL, choose Test connection, then Save. Grant access to the proxy origin when the browser asks.
+4. Open the extension's settings. Paste the proxy URL, generate a secret (or paste yours), set the same secret on the Worker, paste the SAS URL, optionally pick an access tier (the default leaves new blobs in the account default tier; Archive has a 180-day minimum and archived blobs must be rehydrated before download), choose Test connection, then Save. Grant access to the proxy origin when the browser asks.
 5. Open the popup and turn on interception.
 
 ## Usage
